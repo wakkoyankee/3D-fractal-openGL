@@ -12,6 +12,7 @@ from OpenGL.GL.shaders import compileProgram, compileShader
 import pyrr
 import math
 from copy import deepcopy
+from copy import copy
 
 #vertex receives the vertices and the colors then sends colors to fragment
 # it sets the position
@@ -137,6 +138,11 @@ class Octaedre:
         self.rotationMatrix = pyrr.matrix44.create_identity()
         self.actualizeTranslation((0,0,0))
         self.actualizeScale((1,1,1))
+
+        self.modelMatrix = pyrr.matrix44.create_identity()
+        self.translationMatrix = pyrr.matrix44.create_identity()
+        self.rotationMatrix = pyrr.matrix44.create_identity()
+        self.ScaleMatrix = pyrr.matrix44.create_identity()
         
         self.vertices = [ 1, 0.0, 1, 1.0, 0.0, 0.0,
                           1, 0.0, -1, 0.0, 1.0, 0.0,
@@ -156,6 +162,9 @@ class Octaedre:
         
         
         self.Shader=colorShader(self.vertices,self.indices)
+
+    def changeTranslation(self,translationmMat):
+        self.translationMatrix = translationmMat
     
     def actualizeTranslation(self, vecteur):
         self.translationMatrix = pyrr.matrix44.create_from_translation(vecteur)
@@ -173,12 +182,20 @@ class Octaedre:
         rotx = pyrr.matrix44.create_identity()
         roty = pyrr.matrix44.create_from_y_rotation(0.08 * glfw.get_time())
         self.rotationMatrix = pyrr.matrix44.multiply(rotx,roty)
-    
+
+    def Rotation(self,x,y,z):
+        #rotx = pyrr.matrix44.create_from_x_rotation(0.5 * glfw.get_time())
+        rotx = pyrr.matrix44.create_from_x_rotation(x)
+        roty = pyrr.matrix44.create_from_y_rotation(y)
+        rotz = pyrr.matrix44.create_from_z_rotation(z)
+        rot = np.matmul(rotx,np.matmul(roty,rotz))
+        if self.rotationMatrix is not None:
+            self.rotationMatrix = np.matmul(self.rotationMatrix , rot)
+        else:
+            self.rotationMatrix = rot
+
     def actualizeModel(self):
-        self.modelMatrix=np.matmul(
-                                               self.translationMatrix,np.matmul(self.ScaleMatrix,
-                                             self.rotationMatrix))
-        
+        self.modelMatrix=np.matmul(self.translationMatrix,np.matmul(self.ScaleMatrix,self.rotationMatrix))
 
 class colorShader:
     
@@ -227,7 +244,7 @@ class colorShader:
 
 def main():
     win = Window(700,700,"fenetre")
-    win.initViewMatrix(eye=[0,-20,300])
+    win.initViewMatrix(eye=[0,-20,40])
     
     #if not win.Window:
     #    return
@@ -237,11 +254,11 @@ def main():
     #octa3 = Octaedre()
     #octa3.actualizeTranslation([1,-np.sqrt(2),1])
     #octas = [octa,octa2,octa3]
-    
     octas = [octa]
-    octas = fractOcta(octas,5)
+    #octas = fractOcta(octas,2)
+    octas = fractOcta2(octas,3,3)
     a = (1,2)
-    print(a[1]+a[1])
+    #print(a[1]+a[1])
     win.render(octas)
     
 
@@ -296,10 +313,49 @@ def fractOcta(Oc,n):
                     o.actualizeModel()
                     
                     Oc.append(o)
-       
+        
         return Oc
         
-        
+def fractOcta2(Oc,n,s):
+    if n == 0 :
+        return Oc
+    else:
+        Oc = fractOcta2(Oc, n-1,s)
+        a = 2**n
+        b = 2**(n-1)
+        l = len(Oc)
+        for i in range(l):
+
+            tmp = copy(Oc[i])
+            tmp.ajoutTranslation([b,-b*np.sqrt(2),b])
+            tmp.actualizeModel()
+            Oc.append(tmp)
+            
+            tmp = copy(Oc[i])
+            tmp.changeTranslation(Oc[i].translationMatrix)
+            tmp.ajoutTranslation([b,-b*np.sqrt(2),-b])
+            tmp.actualizeModel()
+            Oc.append(tmp)
+
+            tmp = copy(Oc[i])
+            tmp.changeTranslation(Oc[i].translationMatrix)
+            tmp.ajoutTranslation([-b,-b*np.sqrt(2),b])
+            tmp.actualizeModel()
+            Oc.append(tmp)
+
+            tmp = copy(Oc[i])
+            tmp.changeTranslation(Oc[i].translationMatrix)
+            tmp.ajoutTranslation([-b,-b*np.sqrt(2),-b])
+            tmp.actualizeModel()
+            Oc.append(tmp)
+
+            tmp = copy(Oc[i])
+            tmp.changeTranslation(Oc[i].translationMatrix)
+            tmp.ajoutTranslation([0,-a*np.sqrt(2),0])
+            tmp.actualizeModel()
+            Oc.append(tmp)
+
+        return Oc     
         
 
 if __name__ == "__main__":
