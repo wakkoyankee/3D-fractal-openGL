@@ -108,11 +108,11 @@ class colorShader:
         self.vertices = np.array(vertices, dtype=np.float32)
         self.tex = np.array(tex, dtype=np.float32)
         self.indices =np.array(indices, dtype=np.uint32)
-        self.shader = self.createShader(vertex_src,fragment_src)
+        self.shader = self.createShader(vertex_src)
         self.createBuffers()
         glUseProgram(self.shader)
         
-    def createShader(self, vs, fs):
+    def createShader(self, vs):
         fs_file=open('fs.txt','r')
         FRAGMENT_SHADER = fs_file.read()
         fs_file.close()
