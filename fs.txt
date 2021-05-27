@@ -1,0 +1,157 @@
+#version 330
+
+in vec2 fragCoord;
+
+
+const float DEG2RAD = 3.14159265359/180.0;
+        
+const float Epsilon = 0.0008;
+float CAMERA_ZOOM = 1.5;    
+const int MAX_STEPS = 100;
+
+int NUM_ITERATIONS = 15;
+
+uniform vec2 Resolution;
+uniform float time;
+
+uniform float SCALE;
+uniform float C_X;
+uniform float C_Y;
+uniform float C_Z;
+
+uniform float ROT1_X;
+uniform float ROT1_Y;
+uniform float ROT1_Z;
+
+uniform float ROT2_X;
+uniform float ROT2_Y;
+uniform float ROT2_Z;
+
+
+
+
+struct Distance
+{
+	float value;
+	vec3 color;
+};
+
+vec3 translate(vec3 p, vec3 t)
+{
+	return p - t;
+}
+
+vec3 rotateX(vec3 p, float a)
+{
+	a = -a * DEG2RAD;
+	float c = cos(a), s = sin(a);
+	return mat3(1.0, 0.0, 0.0, 0.0, c, -s, 0.0, s, c) * p;
+}
+vec3 rotateY(vec3 p, float a)
+{
+	a = -a * DEG2RAD;
+	float c = cos(a), s = sin(a);
+	return mat3(c, 0.0, s, 0.0, 1.0, 0.0, -s, 0.0, c) * p;
+}
+vec3 rotateZ(vec3 p, float a)
+{
+	a = -a * DEG2RAD;
+	float c = cos(a), s = sin(a);
+	return mat3(c, -s, 0.0, s, c, 0.0, 0.0, 0.0, 1.0) * p;
+}
+
+Distance Color(float value, vec3 color)
+{
+	return Distance(value, color);
+}
+
+vec3 hsv2rgb(float x, float y, float z)
+{
+	vec4 K = vec4(1.0, 2.0/3.0, 1.0/3.0, 3.0);
+	vec3 p = abs(fract(vec3(x) + K.xyz) * 6.0 - K.www);
+	return z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), y);
+}
+
+Distance Scene(vec3 p)
+{
+
+	vec3 z = p;
+	float b = 10000.0;
+	float t = 0.0;
+
+	for (int i = 0; i < 30; ++i) {
+		if (i == NUM_ITERATIONS) {
+			break;
+		}
+		z = rotateX(z, ROT1_X);
+		z = rotateY(z, ROT1_Y);
+		z = rotateZ(z, ROT1_Z);
+
+		if (z.x + z.y < 0.0) { z.xy = -z.yx; }
+		if (z.x + z.z < 0.0) { z.xz = -z.zx; }
+		if (z.x - z.y < 0.0) { z.xy = z.yx; }
+		if (z.x - z.z < 0.0) { z.xz = z.zx; }
+
+		z = rotateX(z, ROT2_X);
+		z = rotateY(z, ROT2_Y);
+		z = rotateZ(z, ROT2_Z);
+
+		z = SCALE * z - (SCALE-1.0) * vec3(C_X, C_Y, C_Z);
+
+		float m = dot(z, z);
+		b = min(m, b);
+		t = float(i+1);
+		if (m >= 8.0) {
+			break;
+		}
+	}
+	return Color((length(z)-2.0) * pow(SCALE, -t), hsv2rgb(b*1.3, 0.6, 0.7));
+}
+
+vec3 raymarch(vec3 p, vec3 dir)
+{
+	Distance dist = Scene(p);
+	float eps = Epsilon * dist.value / CAMERA_ZOOM;
+
+	for (int i = 0; i < MAX_STEPS; ++i)
+	{
+		Distance dist = Scene(p);
+		float d = dist.value;
+
+		if (d <= eps) {
+			return dist.color;
+		}
+		p += dir * d;
+	}
+	return vec3(0.0);
+}
+
+
+//movement de cam
+mat3 viewMatrix(vec3 eye, vec3 center, vec3 up) {
+    // Based on gluLookAt man page
+    vec3 f = normalize(center - eye);
+    vec3 s = normalize(cross(f, up));
+    vec3 u = cross(s, f);
+    return mat3(s, u, -f);
+}
+
+vec3 rayDirection(float fieldOfView, vec2 size, vec2 fragCoord) {
+    vec2 xy = fragCoord - size / 2.0;
+    float z = size.y / tan(radians(fieldOfView) / 2.0);
+    return normalize(vec3(xy, -z));
+}
+
+void main()
+{ 
+	vec3 viewDir = rayDirection(45.0, Resolution.xy, gl_FragCoord.xy);
+    vec3 eye = vec3(sin(time)*2.0,sin(time),sin(time)*2.0+5.0);
+    //vec3 eye = vec3(1,1,5);
+
+    mat3 viewToWorld = viewMatrix(eye, vec3(0.0, 0.0, 0.0), vec3(0.0, 1.0, 0.0));
+    
+    vec3 worldDir = viewToWorld * viewDir;
+	vec3 color = raymarch(eye, worldDir);
+
+	gl_FragColor = vec4(color, 1.0);
+}
