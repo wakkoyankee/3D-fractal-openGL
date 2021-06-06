@@ -164,7 +164,7 @@ class colorShader:
         ROT1_Y = 0.0 #60.0
         ROT1_Z = 0.0
 
-        ROT2_X = 0.0 #20.0 * np.sin(glfw.get_time())
+        ROT2_X = 20.0 * np.sin(glfw.get_time())
         ROT2_Y = 0.0 #20.0
         ROT2_Z = 0.0
 

@@ -233,27 +233,27 @@ def fractOcta(Oc,n):
 
             tmp = copy(Oc[i])
             tmp.doTranslation([b,-b*np.sqrt(2),b])
-            tmp.doRotation(0,0,20)
+            #tmp.doRotation(0,0,20)
             Oc.append(tmp)
             
             tmp = copy(Oc[i])
             tmp.doTranslation([b,-b*np.sqrt(2),-b])
-            tmp.doRotation(0,0,20)
+            #tmp.doRotation(0,0,20)
             Oc.append(tmp)
 
             tmp = copy(Oc[i])
             tmp.doTranslation([-b,-b*np.sqrt(2),b])
-            tmp.doRotation(0,0,20)
+            #tmp.doRotation(0,0,20)
             Oc.append(tmp)
 
             tmp = copy(Oc[i])
             tmp.doTranslation([-b,-b*np.sqrt(2),-b])
-            tmp.doRotation(0,0,20)
+            #tmp.doRotation(0,0,20)
             Oc.append(tmp)
 
             tmp = copy(Oc[i])
             tmp.doTranslation([0,-a*np.sqrt(2),0])
-            tmp.doRotation(0,0,20)
+            #tmp.doRotation(0,0,20)
             Oc.append(tmp)
 
         return Oc     
