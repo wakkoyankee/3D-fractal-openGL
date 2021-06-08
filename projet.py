@@ -27,11 +27,22 @@ uniform mat4 mvp; //model view projection (p*v*m)
 
 
 out vec3 v_color;
-
+//vec3 diffuseLight(vec3 vertex_pos){
+    
+    //}
 void main()
 {
+     vec3 light_pos;
+     vec3 light_ambientColor;
+     vec4 light_diffuseColor;
+     vec4 light_specularColor;
+     float shininess;
+     
+     light_pos = normalize(vec3(3,10,3));
+     light_ambientColor = vec3(1,0,0)*0.6*a_color;
+     
     gl_Position = mvp * vec4(a_position,1.0);
-    v_color = a_color;
+    v_color = light_ambientColor;
 }
 """
 
@@ -42,10 +53,14 @@ in vec3 v_color;
 
 out vec4 out_color;
 
+
+
 void main()
 {
     out_color = vec4(v_color, 1.0);
 }
+
+
 
 """
 
@@ -64,7 +79,7 @@ class Window:
             raise Exception("cant create window")
 
         #set window position
-        glfw.set_window_pos(self._win, 200, 200)
+        glfw.set_window_pos(self._win, 400, 400)
 
         # allows the resize of the window
         #glfw.set_window_size_callback(self._win, window_resize)
@@ -90,17 +105,19 @@ class Window:
 
         glViewport(0, 0, width, height)
         
-    def initViewMatrix(self,eye=[0,0,70]):
+    def initViewMatrix(self,eye=[0,0,70],target=[0,0,0]):
         eye=np.array(eye)
-        target=np.array([0,0,0])
+        target=np.array(target)
         up=np.array([0,1,0])
         self.ViewMatrix = pyrr.matrix44.create_look_at(eye,target,up)
         
-    def render(self,octas):
-        self.initViewMatrix()
+    def render(self,octas,n):
+        octas = fractOcta(octas,n)
+        self.initViewMatrix(eye = [0,0,(2**(n+1) - 1)*2])
+        #print(self.ViewMatrix())
         #color of the window
         glClearColor(0.1, 0.1, 0.1, 1)
-
+        t = 1
         #need it or depth perception is weird
         glEnable(GL_DEPTH_TEST)
         #glDisable(GL_CULL_FACE)
@@ -110,16 +127,20 @@ class Window:
             glfw.poll_events()
             
             glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT)
-          
+            
+            
+            self.initViewMatrix(eye = [0,(2**n)*np.cos(0.5*glfw.get_time()),(2**(n+1) - 1)*2*(np.cos(0.5*glfw.get_time())-1.5)])
             v=self.ViewMatrix
-            v = np.matmul(pyrr.matrix44.create_from_y_rotation(3* np.sin(glfw.get_time())),v)
+            v = np.matmul(pyrr.matrix44.create_from_y_rotation(0.5*glfw.get_time()),v)
             p=self.projection
             vp=np.matmul(v,p)
             #adapte la projection si la taille de la fenêtre change
             w, h = glfw.get_framebuffer_size(self._win)
             self.ProjectionMatrix(w,h)
+           
             for o in octas:
                 mvp = np.matmul(o.modelMatrix, vp)
+                mvp = np.matmul( pyrr.matrix44.create_from_translation([0,(2**n - 1)*np.sqrt(2),0]),mvp)
                 o.Shader.draw(mvp)
                 
             glfw.swap_buffers(self._win)
@@ -212,13 +233,13 @@ class colorShader:
 
 def main():
     win = Window(700,700,"fenetre")
-    win.initViewMatrix(eye=[0,-20,40])
+    win.initViewMatrix(eye=[0,-20,40],target=[0,0,0])
     
     octa = Octaedre()
     octas = [octa]
 
-    octas = fractOcta(octas,3)
-    win.render(octas)
+    
+    win.render(octas,3)
     
         
 def fractOcta(Oc,n):
@@ -229,6 +250,7 @@ def fractOcta(Oc,n):
         a = 2**n
         b = 2**(n-1)
         l = len(Oc)
+        
         for i in range(l):
 
             tmp = copy(Oc[i])
