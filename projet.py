@@ -22,27 +22,32 @@ vertex_src = """
 
 layout(location = 0) in vec3 a_position;
 layout(location = 1) in vec3 a_color;
+layout(location = 2) in vec3 a_normal;
 
 uniform mat4 mvp; //model view projection (p*v*m)
-
+uniform mat4 model; //matrice model
+uniform vec3 light_pos; //position de la source lumineuse
+uniform vec3 camPos; //position de la camera
 
 out vec3 v_color;
+out vec3 Normal;
+out vec3 FragPos;
+out vec3 LightPosition;
+out vec3 camPosition;
 //vec3 diffuseLight(vec3 vertex_pos){
     
     //}
 void main()
 {
-     vec3 light_pos;
-     vec3 light_ambientColor;
-     vec4 light_diffuseColor;
-     vec4 light_specularColor;
-     float shininess;
      
-     light_pos = normalize(vec3(3,10,3));
-     light_ambientColor = vec3(1,0,0)*0.6*a_color;
      
+    
     gl_Position = mvp * vec4(a_position,1.0);
-    v_color = light_ambientColor;
+    v_color = a_color;
+    Normal = mat3(transpose(inverse(model))) * a_normal;
+    FragPos = vec3(model * vec4(a_position,1.0));
+    LightPosition = light_pos;
+    camPosition = camPos;
 }
 """
 
@@ -50,6 +55,10 @@ fragment_src = """
 # version 330
 
 in vec3 v_color;
+in vec3 Normal;
+in vec3 FragPos;
+in vec3 LightPosition;
+in vec3 camPosition;
 
 out vec4 out_color;
 
@@ -57,7 +66,32 @@ out vec4 out_color;
 
 void main()
 {
-    out_color = vec4(v_color, 1.0);
+     //normalisation des vecteurs 
+     vec3 norm = normalize(Normal);
+     vec3 lightDir = normalize(LightPosition - FragPos);
+     //couleur de la lumière
+     vec3 lightColor = vec3(1,1,1);
+     
+     //lumière ambiente
+     float coeffAmbient = 0.2;
+     vec3 light_ambient = coeffAmbient*lightColor;
+     
+     //lumière diffuse
+     float diff = max(dot(norm, lightDir),0.0);
+     vec3 light_diffuse = diff*lightColor;
+     
+     //lumière séculaire
+     float coeffSpecular = 0.5;
+     vec3 viewDir = normalize(camPosition - FragPos);
+     vec3 reflectDir = reflect(-lightDir, norm);
+     float spec = pow(max(dot(viewDir, reflectDir),0.0),4);
+     vec3 light_specular = coeffSpecular * spec * lightColor;
+     
+     vec3 result = (light_ambient + light_diffuse + light_specular) * v_color;
+     
+     
+ 
+    out_color = vec4(result, 1.0);
 }
 
 
@@ -128,8 +162,8 @@ class Window:
             
             glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT)
             
-            
-            self.initViewMatrix(eye = [0,(2**n)*np.cos(0.5*glfw.get_time()),(2**(n+1) - 1)*2*(np.cos(0.5*glfw.get_time())-1.5)])
+            eyeCam = [0,(2**n)*np.cos(0.25*glfw.get_time()),(2**(n+1) - 1)*2*(np.cos(0.5*glfw.get_time())-2)]
+            self.initViewMatrix(eye = eyeCam)
             v=self.ViewMatrix
             v = np.matmul(pyrr.matrix44.create_from_y_rotation(0.5*glfw.get_time()),v)
             p=self.projection
@@ -139,9 +173,10 @@ class Window:
             self.ProjectionMatrix(w,h)
            
             for o in octas:
+                light_pos = [2**n,(2**n+1)*np.sqrt(2) - np.sqrt(2),0]
                 mvp = np.matmul(o.modelMatrix, vp)
                 mvp = np.matmul( pyrr.matrix44.create_from_translation([0,(2**n - 1)*np.sqrt(2),0]),mvp)
-                o.Shader.draw(mvp)
+                o.Shader.draw(mvp, light_pos,o.modelMatrix,eyeCam)
                 
             glfw.swap_buffers(self._win)
             
@@ -157,12 +192,12 @@ class Octaedre:
     def __init__(self):
         self.modelMatrix = pyrr.matrix44.create_identity()
         
-        self.vertices = [ 1, 0.0, 1, 1.0, 0.0, 0.0,
-                          1, 0.0, -1, 0.0, 1.0, 0.0,
-                         -1, 0.0, -1, 0.0, 0.0, 1.0,
-                         -1, 0.0, 1, 1.0, 1.0, 0.0,
-                          0.0, np.sqrt(2), 0.0, 1.0, 1.0, 1.0,
-                          0.0, -np.sqrt(2), 0.0, 1.0, 0.0, 1.0]
+        self.vertices = [ 1, 0.0, 1, 1.0, 0.0, 0.0, np.sqrt(2),0.0,np.sqrt(2),
+                          1, 0.0, -1, 1.0, 0.0, 0.0, np.sqrt(2),0.0,-np.sqrt(2),
+                         -1, 0.0, -1, 1.0, 0.0, 0.0, -np.sqrt(2),0.0,-np.sqrt(2),
+                         -1, 0.0, 1, 1.0, 0.0, 0.0, -np.sqrt(2),0.0,np.sqrt(2),
+                          0.0, np.sqrt(2), 0.0, 1.0, 0.0, 0.0, 0.0,1.0,0.0,
+                          0.0, -np.sqrt(2), 0.0, 1.0, 0.0, 0.0, 0.0,-1.0,0.0]
 
         self.indices = [0,4,1,
                         1,4,2,
@@ -219,16 +254,27 @@ class colorShader:
         #position = glGetAttribLocation(shader, "a_position") DONT NEED IT ANYMOER WHEN ADD layout(location = n) in vertex shader
         glEnableVertexAttribArray(0)
         #The last arg is where you start in the buffer (vertices array)
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 24, ctypes.c_void_p(0))
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 36, ctypes.c_void_p(0))
 
         #color = glGetAttribLocation(shader, "a_color")
         glEnableVertexAttribArray(1)
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 24, ctypes.c_void_p(12))
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 36, ctypes.c_void_p(12))
         
-    def draw(self, mvp):
+        glEnableVertexAttribArray(2)
+        glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 36, ctypes.c_void_p(24))
+        
+    def draw(self, mvp, light_pos, model,eyeCam):
+        
         
         transformLoc = glGetUniformLocation(self.shader, "mvp")
         glUniformMatrix4fv(transformLoc, 1, GL_FALSE, mvp)
+        transformLoc2 = glGetUniformLocation(self.shader, "light_pos")
+        glUniform3fv(transformLoc2, 1, light_pos)
+        transformLoc3 = glGetUniformLocation(self.shader, "model")
+        glUniformMatrix4fv(transformLoc3, 1,GL_FALSE, model)
+        transformLoc4 = glGetUniformLocation(self.shader, "camPos")
+        glUniform3fv(transformLoc4, 1, eyeCam)
+        
         glDrawElements(GL_TRIANGLES, len(self.indices), GL_UNSIGNED_INT, None)
 
 def main():
