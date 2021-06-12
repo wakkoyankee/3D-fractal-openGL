@@ -211,12 +211,7 @@ class Octaedre:
         
         self.Shader=colorShader(self.vertices,self.indices)
 
-    def doRotation(self,x,y,z):
-        rotx = pyrr.matrix44.create_from_x_rotation(x)
-        roty = pyrr.matrix44.create_from_y_rotation(y)
-        rotz = pyrr.matrix44.create_from_z_rotation(z)
-        rot = np.matmul(rotz,np.matmul(roty,rotx))
-        self.modelMatrix = np.matmul(rot, self.modelMatrix)
+    
         
     #permet de une translation de l'octaèdre
     def doTranslation(self,vecteur):
