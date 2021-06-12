@@ -92,11 +92,22 @@ Distance Scene(vec3 p)
 		if (z.x - z.y < 0.0) { z.xy = z.yx; }
 		if (z.x - z.z < 0.0) { z.xz = z.zx; }
 
+		//z = abs(z); //for menger sponge/ cubique forms
+		//if (z.x - z.y < 0.0) { z.xy = z.yx; }
+		//if (z.x - z.z < 0.0) { z.xz = z.zx; }
+		//if (z.y - z.z < 0.0) { z.yz = z.zy; }
+
 		z = rotateX(z, ROT2_X);
 		z = rotateY(z, ROT2_Y);
 		z = rotateZ(z, ROT2_Z);
 
 		z = SCALE * z - (SCALE-1.0) * vec3(C_X, C_Y, C_Z);
+		//z.x = SCALE * z.x - (SCALE-1.0) * C_X;
+		//z.y = SCALE * z.y - (SCALE-1.0) * C_Y;
+		//z.z = SCALE * z.z;
+		//if (z.z > (SCALE-1.0)*0.5 * C_Z) {
+		//	z.z -= (SCALE-1.0) * C_Z;
+		//}
 
 		float m = dot(z, z);
 		b = min(m, b);
@@ -105,23 +116,88 @@ Distance Scene(vec3 p)
 			break;
 		}
 	}
-	return Color((length(z)-2.0) * pow(SCALE, -t), hsv2rgb(b*1.3, 0.6, 0.7));
+	return Color((length(z)-2.0) * pow(SCALE, -t), hsv2rgb(b*1.3, 0.5, 0.7));
 }
+
+vec3 estimateNormal(vec3 p) {
+    Distance tmp = Scene(vec3(p.x - Epsilon, p.y, p.z));
+    Distance tmp2 = Scene(vec3(p.x + Epsilon, p.y, p.z));
+    float x = tmp2.value - tmp.value;
+    
+    tmp = Scene(vec3(p.x, p.y - Epsilon, p.z));
+    tmp2 = Scene(vec3(p.x, p.y + Epsilon, p.z));
+    float y = tmp2.value - tmp.value;
+    
+    tmp = Scene(vec3(p.x, p.y, p.z - Epsilon));
+    tmp2 = Scene(vec3(p.x, p.y, p.z  + Epsilon));
+    float z = tmp2.value - tmp.value;
+    
+    return normalize(vec3(
+        x,
+        y,
+        z
+    ));
+}
+
+vec3 phongContribForLight(vec3 k_d, vec3 k_s, float alpha, vec3 p, vec3 eye,
+                          vec3 lightPos, vec3 lightIntensity) {
+    vec3 N = estimateNormal(p);
+    vec3 L = normalize(lightPos - p);
+    vec3 V = normalize(eye - p);
+    vec3 R = normalize(reflect(-L, N));
+    
+    float dotLN = dot(L, N);
+    float dotRV = dot(R, V);
+    
+    if (dotLN < 0.0) {
+        return vec3(0.0, 0.0, 0.0);
+    } 
+    
+    if (dotRV < 0.0) {
+        return lightIntensity * (k_d * dotLN);
+    }
+    return lightIntensity * (k_d * dotLN + k_s * pow(dotRV, alpha));
+}
+
+vec3 phongIllumination(vec3 k_a, vec3 k_d, vec3 k_s, float alpha, vec3 p, vec3 eye) {
+    const vec3 ambientLight = 0.5 * vec3(1.0, 1.0, 1.0);
+    vec3 color = ambientLight * k_a;
+    
+    vec3 light1Pos = vec3(4.0,
+                          2.0,
+                          0.0 );
+    vec3 light1Intensity = vec3(1.0, 1.0, 1.0);
+    
+    color += phongContribForLight(k_d, k_s, alpha, p, eye,
+                                  light1Pos,
+                                  light1Intensity);
+    
+
+    return color;
+}
+
 
 vec3 raymarch(vec3 p, vec3 dir)
 {
-	Distance dist = Scene(p);
+	vec3 eye = p;
+	Distance dist = Scene(p);//distance cam objet dans scene
 	float eps = Epsilon * dist.value / CAMERA_ZOOM;
 
-	for (int i = 0; i < MAX_STEPS; ++i)
+	for (int i = 0; i < MAX_STEPS; ++i)//MAX_STEPS nombre d'iteration avant d'abandonné, trop loin ou ne touche rien
 	{
-		Distance dist = Scene(p);
+		Distance dist = Scene(p);//distance point et objet dans scene
 		float d = dist.value;
 
-		if (d <= eps) {
-			return dist.color;
+		if (d <= eps) { //si la distance est plus petite que le seuil donné alors  considere quon touch la surface
+			vec3 K_a = vec3(1.0, 1.0, 1.0);
+            vec3 K_d = vec3(1.0, 0.3, 0.3);
+            vec3 K_s = vec3(1.0, 1.0, 1.0);
+            float shininess = 100.0;
+
+            vec3 c = phongIllumination(K_a, K_d, K_s, shininess, p, eye);
+			return dist.color*c; //donne la couleur
 		}
-		p += dir * d;
+		p += dir * d; //avance de la distance dans le direction du ray
 	}
 	return vec3(0.0);
 }
@@ -145,8 +221,8 @@ vec3 rayDirection(float fieldOfView, vec2 size, vec2 fragCoord) {
 void main()
 { 
 	vec3 viewDir = rayDirection(45.0, Resolution.xy, gl_FragCoord.xy);
-    vec3 eye = vec3(sin(time)*2.0,sin(time),sin(time)*2.0+5.0);
-    //vec3 eye = vec3(1,1,5);
+    //vec3 eye = vec3(sin(time)*2.0,sin(time),sin(time)*2.0+5.0);
+    vec3 eye = vec3(1,1,5);
 
     mat3 viewToWorld = viewMatrix(eye, vec3(0.0, 0.0, 0.0), vec3(0.0, 1.0, 0.0));
     

@@ -160,12 +160,12 @@ class colorShader:
         C_Y = 0.0
         C_Z = 0.0
 
-        ROT1_X = 0.0 #20.0 * np.sin(glfw.get_time())
-        ROT1_Y = 0.0 #60.0
-        ROT1_Z = 0.0
+        ROT1_X = 20#10.0 #20.0 * np.sin(glfw.get_time())
+        ROT1_Y = 0#20.0 #60.0
+        ROT1_Z = 0#-103.0
 
-        ROT2_X = 20.0 * np.sin(glfw.get_time())
-        ROT2_Y = 0.0 #20.0
+        ROT2_X = 20#3.0 #* np.sin(glfw.get_time())
+        ROT2_Y = 0#-3.0 #20.0
         ROT2_Z = 0.0
 
 
@@ -175,6 +175,8 @@ class colorShader:
         glUniform1f(Loc, C_X)
         Loc = glGetUniformLocation(self.shader, "C_Y")
         glUniform1f(Loc, C_Y)
+        Loc = glGetUniformLocation(self.shader, "C_Z")
+        glUniform1f(Loc, C_Z)
         Loc = glGetUniformLocation(self.shader, "ROT1_X")
         glUniform1f(Loc, ROT1_X)
         Loc = glGetUniformLocation(self.shader, "ROT1_Y")
@@ -188,17 +190,13 @@ class colorShader:
         Loc = glGetUniformLocation(self.shader, "ROT2_Z")
         glUniform1f(Loc, ROT2_Z)
 
-        
-
-
-
 
         resLoc = glGetUniformLocation(self.shader, "Resolution")
         glUniform2fv(resLoc, 1, (700.0,700.0))
         
         time = glfw.get_time()
         timeLoc = glGetUniformLocation(self.shader, "time")
-        glUniform1f(timeLoc, time)
+        glUniform1f(timeLoc, np.pi/2)
 
         glDrawElements(GL_TRIANGLES, len(self.indices), GL_UNSIGNED_INT, None)
 
