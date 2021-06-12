@@ -34,9 +34,7 @@ out vec3 Normal;
 out vec3 FragPos;
 out vec3 LightPosition;
 out vec3 camPosition;
-//vec3 diffuseLight(vec3 vertex_pos){
-    
-    //}
+
 void main()
 {
      
@@ -87,6 +85,7 @@ void main()
      float spec = pow(max(dot(viewDir, reflectDir),0.0),4);
      vec3 light_specular = coeffSpecular * spec * lightColor;
      
+     //résultats de l'ensemble des lumières formant l'illumination de Phongs
      vec3 result = (light_ambient + light_diffuse + light_specular) * v_color;
      
      
@@ -162,7 +161,7 @@ class Window:
             
             glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT)
             
-            eyeCam = [0,(2**n)*np.cos(0.25*glfw.get_time()),(2**(n+1) - 1)*2*(np.cos(0.5*glfw.get_time())-2)]
+            eyeCam = [0,(2**n)*np.cos(0.25*glfw.get_time()),(2**(n+2) - 2)*(np.cos(0.5*glfw.get_time())-2)]
             self.initViewMatrix(eye = eyeCam)
             v=self.ViewMatrix
             v = np.matmul(pyrr.matrix44.create_from_y_rotation(0.5*glfw.get_time()),v)
@@ -192,12 +191,13 @@ class Octaedre:
     def __init__(self):
         self.modelMatrix = pyrr.matrix44.create_identity()
         
-        self.vertices = [ 1, 0.0, 1, 1.0, 0.0, 0.0, np.sqrt(2),0.0,np.sqrt(2),
-                          1, 0.0, -1, 1.0, 0.0, 0.0, np.sqrt(2),0.0,-np.sqrt(2),
-                         -1, 0.0, -1, 1.0, 0.0, 0.0, -np.sqrt(2),0.0,-np.sqrt(2),
-                         -1, 0.0, 1, 1.0, 0.0, 0.0, -np.sqrt(2),0.0,np.sqrt(2),
-                          0.0, np.sqrt(2), 0.0, 1.0, 0.0, 0.0, 0.0,1.0,0.0,
-                          0.0, -np.sqrt(2), 0.0, 1.0, 0.0, 0.0, 0.0,-1.0,0.0]
+        
+        self.vertices = [ 1, 0.0, 1, 0.6, 0.196078, 0.8, np.sqrt(2),0.0,np.sqrt(2),
+                          1, 0.0, -1, 0.6, 0.196078, 0.8, np.sqrt(2),0.0,-np.sqrt(2),
+                         -1, 0.0, -1, 0.6, 0.196078, 0.8, -np.sqrt(2),0.0,-np.sqrt(2),
+                         -1, 0.0, 1, 0.6, 0.196078, 0.8, -np.sqrt(2),0.0,np.sqrt(2),
+                          0.0, np.sqrt(2), 0.0, 1, 0, 0, 0.0,1.0,0.0,
+                          0.0, -np.sqrt(2), 0.0, 1, 0, 0, 0.0,-1.0,0.0]
 
         self.indices = [0,4,1,
                         1,4,2,
@@ -217,7 +217,8 @@ class Octaedre:
         rotz = pyrr.matrix44.create_from_z_rotation(z)
         rot = np.matmul(rotz,np.matmul(roty,rotx))
         self.modelMatrix = np.matmul(rot, self.modelMatrix)
-
+        
+    #permet de une translation de l'octaèdre
     def doTranslation(self,vecteur):
         self.modelMatrix = np.matmul(pyrr.matrix44.create_from_translation(vecteur), self.modelMatrix)
 
@@ -229,11 +230,12 @@ class colorShader:
         self.shader = self.createShader(vertex_src,fragment_src)
         self.createBuffers()
         glUseProgram(self.shader)
-        
+    
+    #création du shader
     def createShader(self, vs, fs):
         return OpenGL.GL.shaders.compileProgram(compileShader(vs, GL_VERTEX_SHADER),
                        compileShader(fs, GL_FRAGMENT_SHADER))
-        
+     #création des buffers   
     def createBuffers(self):
         
         #create VAO
@@ -260,18 +262,22 @@ class colorShader:
         glEnableVertexAttribArray(1)
         glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 36, ctypes.c_void_p(12))
         
+        #normal = glGetAttribLocation(shader, "a_normal")
         glEnableVertexAttribArray(2)
         glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 36, ctypes.c_void_p(24))
         
     def draw(self, mvp, light_pos, model,eyeCam):
         
-        
+        #relation entre la matrice uniform mvp de glsl avec la matrice mvp de openGL python
         transformLoc = glGetUniformLocation(self.shader, "mvp")
         glUniformMatrix4fv(transformLoc, 1, GL_FALSE, mvp)
+        #relation entre le vecteur de la position de la lumière uniform de glsl avec celui  de openGL python
         transformLoc2 = glGetUniformLocation(self.shader, "light_pos")
         glUniform3fv(transformLoc2, 1, light_pos)
+         #relation entre la matrice model uniform de glsl avec celle de openGL python
         transformLoc3 = glGetUniformLocation(self.shader, "model")
         glUniformMatrix4fv(transformLoc3, 1,GL_FALSE, model)
+        #relation entre le vecteur de la position de la camera uniform de glsl avec celui de openGL python
         transformLoc4 = glGetUniformLocation(self.shader, "camPos")
         glUniform3fv(transformLoc4, 1, eyeCam)
         
@@ -287,41 +293,43 @@ def main():
     
     win.render(octas,3)
     
-        
+#fonction fractal récursive générant et positionnant les différents octaèdres formant l'objet mathématique      
 def fractOcta(Oc,n):
     if n == 0 :
         return Oc
     else:
-        Oc = fractOcta(Oc, n-1)
+        Oc = fractOcta(Oc, n-1) #appel récursif
+        #on récupère le nombe d'octaèdre de l'étape n-1 pour placer ceux de l'étape n
         a = 2**n
         b = 2**(n-1)
-        l = len(Oc)
+        l = len(Oc) #taille de la liste contenant les octaèdres
         
         for i in range(l):
-
+            #on effectue les différentes translations a effectué aux octaèdres à l'étape n pour former
+            #notre objet mathématique
             tmp = copy(Oc[i])
             tmp.doTranslation([b,-b*np.sqrt(2),b])
-            #tmp.doRotation(0,0,20)
+           
             Oc.append(tmp)
             
             tmp = copy(Oc[i])
             tmp.doTranslation([b,-b*np.sqrt(2),-b])
-            #tmp.doRotation(0,0,20)
+           
             Oc.append(tmp)
 
             tmp = copy(Oc[i])
             tmp.doTranslation([-b,-b*np.sqrt(2),b])
-            #tmp.doRotation(0,0,20)
+           
             Oc.append(tmp)
 
             tmp = copy(Oc[i])
             tmp.doTranslation([-b,-b*np.sqrt(2),-b])
-            #tmp.doRotation(0,0,20)
+            
             Oc.append(tmp)
 
             tmp = copy(Oc[i])
             tmp.doTranslation([0,-a*np.sqrt(2),0])
-            #tmp.doRotation(0,0,20)
+            
             Oc.append(tmp)
 
         return Oc     
