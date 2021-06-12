@@ -42,9 +42,6 @@ class Window:
         #set window position
         glfw.set_window_pos(self._win, 200, 200)
 
-        # allows the resize of the window
-        #glfw.set_window_size_callback(self._win, window_resize)
-
         # make the context current
         glfw.make_context_current(self._win)
         
@@ -98,7 +95,6 @@ class Screen:
         self.indices = [0,1,2,1,2,3]
         
         self.Shader=colorShader(self.vertices, self.tex, self.indices)
-        #print(self.Shader.vertices)
 
 
 
@@ -160,12 +156,12 @@ class colorShader:
         C_Y = 0.0
         C_Z = 0.0
 
-        ROT1_X = 20#10.0 #20.0 * np.sin(glfw.get_time())
-        ROT1_Y = 0#20.0 #60.0
-        ROT1_Z = 0#-103.0
+        ROT1_X = 20.0 * np.sin(glfw.get_time())
+        ROT1_Y = 10 * np.cos(glfw.get_time())
+        ROT1_Z = 0
 
-        ROT2_X = 20#3.0 #* np.sin(glfw.get_time())
-        ROT2_Y = 0#-3.0 #20.0
+        ROT2_X = 40 * np.cos(glfw.get_time())
+        ROT2_Y = 10 * np.sin(glfw.get_time())
         ROT2_Z = 0.0
 
 
