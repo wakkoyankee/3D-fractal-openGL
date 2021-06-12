@@ -275,7 +275,7 @@ class colorShader:
 
 def main():
     win = Window(700,700,"fenetre")
-    win.initViewMatrix(eye=[0,-20,40],target=[0,0,0])
+    
     
     octa = Octaedre()
     octas = [octa]
