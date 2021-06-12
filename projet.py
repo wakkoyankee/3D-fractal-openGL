@@ -1,9 +1,4 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Wed May  5 15:38:31 2021
 
-@author: jeome
-"""
 
 import glfw
 from OpenGL.GL import *
