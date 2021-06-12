@@ -1,6 +1,8 @@
 # 3D-fractal-openGL
 
-Executer l'executable
+Executer l'executable, puis dans l'invite de commande mettre:
+- 1 : pour le projet cpu
+- 2 : pour le projet gpu
 
 OU
 
